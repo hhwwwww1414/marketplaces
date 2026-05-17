@@ -1,0 +1,16 @@
+.next/
+node_modules/
+out/
+dist/
+coverage/
+.playwright-mcp/
+.env
+.env.local
+.env.*.local
+data/source/
+.next-dev-*.log
+dashboard-desktop.png
+source-data-mobile.png
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
