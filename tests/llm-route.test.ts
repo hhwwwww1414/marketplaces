@@ -51,4 +51,29 @@ describe("LLM analyze route", () => {
     expect(response.status).toBe(502);
     await expect(response.json()).resolves.toMatchObject({ ok: false });
   });
+
+  it("normalizes a quoted OpenRouter base URL from environment variables", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENROUTER_API_KEY: "test-key",
+      OPENROUTER_MODEL: "test-model",
+      OPENROUTER_BASE_URL: '"https://openrouter.example/v1/"',
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        choices: [{ message: { content: "analysis" } }],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new Request("https://example.test/api/llm/analyze", {
+        method: "POST",
+        body: JSON.stringify({ mode: "project_evaluation", payload: { projectScore: { totalScore: 70 } } }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith("https://openrouter.example/v1/chat/completions", expect.any(Object));
+  });
 });

@@ -8,6 +8,7 @@ const OPENROUTER_ERROR_MESSAGE = "OpenRouter вернул ошибку. Пров
 const OPENROUTER_UNAVAILABLE_MESSAGE = "OpenRouter недоступен. Попробуйте повторить запрос позже.";
 const OPENROUTER_INVALID_RESPONSE_MESSAGE =
   "OpenRouter вернул некорректный ответ. Попробуйте повторить запрос или выбрать другую модель.";
+const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 const requestSchema = z.object({
   mode: z.enum(["project_evaluation", "forecast", "dashboard"]),
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: DISABLED_MESSAGE }, { status: 200 });
   }
 
-  const baseUrl = process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
+  const baseUrl = normalizeBaseUrl(process.env.OPENROUTER_BASE_URL);
   const model = process.env.OPENROUTER_MODEL ?? "minimax/minimax-m2.5:free";
   const payload = sanitizeForLLM(parsed.data.payload);
 
@@ -81,4 +82,19 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ ok: true, content: data.choices?.[0]?.message?.content ?? "" });
+}
+
+function normalizeBaseUrl(value: string | undefined): string {
+  const baseUrl = (value ?? DEFAULT_OPENROUTER_BASE_URL).trim().replace(/^['"]|['"]$/g, "").replace(/\/+$/, "");
+
+  try {
+    const url = new URL(baseUrl);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return url.toString().replace(/\/+$/, "");
+    }
+  } catch {
+    console.error("Invalid OPENROUTER_BASE_URL, using default OpenRouter URL.");
+  }
+
+  return DEFAULT_OPENROUTER_BASE_URL;
 }
