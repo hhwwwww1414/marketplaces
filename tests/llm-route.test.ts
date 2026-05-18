@@ -1,0 +1,54 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { POST } from "@/app/api/llm/analyze/route";
+
+describe("LLM analyze route", () => {
+  const originalEnv = process.env;
+
+  afterEach(() => {
+    process.env = originalEnv;
+    vi.unstubAllGlobals();
+  });
+
+  it("returns JSON when OpenRouter cannot be reached", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENROUTER_API_KEY: "test-key",
+      OPENROUTER_MODEL: "test-model",
+      OPENROUTER_BASE_URL: "https://openrouter.example/v1",
+    };
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+
+    const response = await POST(
+      new Request("https://example.test/api/llm/analyze", {
+        method: "POST",
+        body: JSON.stringify({ mode: "project_evaluation", payload: { projectScore: { totalScore: 70 } } }),
+      }),
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ ok: false });
+  });
+
+  it("returns JSON when OpenRouter sends an invalid response body", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENROUTER_API_KEY: "test-key",
+      OPENROUTER_MODEL: "test-model",
+      OPENROUTER_BASE_URL: "https://openrouter.example/v1",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("not-json", { status: 200, headers: { "Content-Type": "text/plain" } })),
+    );
+
+    const response = await POST(
+      new Request("https://example.test/api/llm/analyze", {
+        method: "POST",
+        body: JSON.stringify({ mode: "project_evaluation", payload: { projectScore: { totalScore: 70 } } }),
+      }),
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ ok: false });
+  });
+});

@@ -4,6 +4,10 @@ import { sanitizeForLLM } from "@/lib/privacy";
 
 const DISABLED_MESSAGE =
   "ИИ-модуль отключен: не найден ключ OpenRouter. Расчеты и аналитические разделы доступны без ИИ.";
+const OPENROUTER_ERROR_MESSAGE = "OpenRouter вернул ошибку. Проверьте ключ и модель.";
+const OPENROUTER_UNAVAILABLE_MESSAGE = "OpenRouter недоступен. Попробуйте повторить запрос позже.";
+const OPENROUTER_INVALID_RESPONSE_MESSAGE =
+  "OpenRouter вернул некорректный ответ. Попробуйте повторить запрос или выбрать другую модель.";
 
 const requestSchema = z.object({
   mode: z.enum(["project_evaluation", "forecast", "dashboard"]),
@@ -25,39 +29,56 @@ export async function POST(request: Request) {
   const model = process.env.OPENROUTER_MODEL ?? "minimax/minimax-m2.5:free";
   const payload = sanitizeForLLM(parsed.data.payload);
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://vercel.app",
-      "X-Title": process.env.NEXT_PUBLIC_APP_NAME ?? "Инструмент оценки проектов на маркетплейсах",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Ты аналитик проектной оценки маркетплейс-инициатив. Не пересчитывай показатели, используй только переданные агрегаты. Не запрашивай персональные данные и не делай выводов по сырым строкам заказов.",
-        },
-        {
-          role: "user",
-          content: [
-            `Режим анализа: ${parsed.data.mode}.`,
-            "Подготовь краткую управленческую интерпретацию: сильные стороны, риски, прогноз и 3 практические рекомендации.",
-            JSON.stringify(payload),
-          ].join("\n\n"),
-        },
-      ],
-      temperature: 0.2,
-    }),
-  });
-
-  if (!response.ok) {
-    return NextResponse.json({ ok: false, error: "OpenRouter вернул ошибку. Проверьте ключ и модель." }, { status: 502 });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://vercel.app",
+        "X-Title": process.env.NEXT_PUBLIC_APP_NAME ?? "Инструмент оценки проектов на маркетплейсах",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Ты аналитик проектной оценки маркетплейс-инициатив. Не пересчитывай показатели, используй только переданные агрегаты. Не запрашивай персональные данные и не делай выводов по сырым строкам заказов.",
+          },
+          {
+            role: "user",
+            content: [
+              `Режим анализа: ${parsed.data.mode}.`,
+              "Подготовь краткую управленческую интерпретацию: сильные стороны, риски, прогноз и 3 практические рекомендации.",
+              JSON.stringify(payload),
+            ].join("\n\n"),
+          },
+        ],
+        temperature: 0.2,
+      }),
+    });
+  } catch (error) {
+    console.error("OpenRouter request failed", error);
+    return NextResponse.json({ ok: false, error: OPENROUTER_UNAVAILABLE_MESSAGE }, { status: 502 });
   }
 
-  const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  if (!response.ok) {
+    console.error("OpenRouter returned an error", {
+      status: response.status,
+      statusText: response.statusText,
+    });
+    return NextResponse.json({ ok: false, error: OPENROUTER_ERROR_MESSAGE }, { status: 502 });
+  }
+
+  let data: { choices?: Array<{ message?: { content?: string } }> };
+  try {
+    data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  } catch (error) {
+    console.error("OpenRouter returned invalid JSON", error);
+    return NextResponse.json({ ok: false, error: OPENROUTER_INVALID_RESPONSE_MESSAGE }, { status: 502 });
+  }
+
   return NextResponse.json({ ok: true, content: data.choices?.[0]?.message?.content ?? "" });
 }
