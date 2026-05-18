@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: OPENROUTER_INVALID_RESPONSE_MESSAGE }, { status: 502 });
   }
 
-  return NextResponse.json({ ok: true, content: data.choices?.[0]?.message?.content ?? "" });
+  return NextResponse.json({ ok: true, content: repairMojibake(data.choices?.[0]?.message?.content ?? "") });
 }
 
 function normalizeBaseUrl(value: string | undefined): string {
@@ -108,4 +108,22 @@ function normalizeHeaderTitle(value: string | undefined): string {
   }
 
   return DEFAULT_OPENROUTER_APP_TITLE;
+}
+
+function repairMojibake(value: string): string {
+  if (!/[ÐÑÂâ]/.test(value)) {
+    return value;
+  }
+
+  try {
+    const bytes = Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff);
+    const repaired = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return countCyrillic(repaired) > countCyrillic(value) ? repaired : value;
+  } catch {
+    return value;
+  }
+}
+
+function countCyrillic(value: string): number {
+  return [...value].filter((char) => /[А-Яа-яЁё]/.test(char)).length;
 }
