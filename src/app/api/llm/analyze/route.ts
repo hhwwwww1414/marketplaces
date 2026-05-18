@@ -9,6 +9,7 @@ const OPENROUTER_UNAVAILABLE_MESSAGE = "OpenRouter недоступен. Поп�
 const OPENROUTER_INVALID_RESPONSE_MESSAGE =
   "OpenRouter вернул некорректный ответ. Попробуйте повторить запрос или выбрать другую модель.";
 const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const DEFAULT_OPENROUTER_APP_TITLE = "Marketplace project evaluation tool";
 
 const requestSchema = z.object({
   mode: z.enum(["project_evaluation", "forecast", "dashboard"]),
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://vercel.app",
-        "X-Title": process.env.NEXT_PUBLIC_APP_NAME ?? "Инструмент оценки проектов на маркетплейсах",
+        "X-Title": normalizeHeaderTitle(process.env.NEXT_PUBLIC_APP_NAME),
       },
       body: JSON.stringify({
         model,
@@ -97,4 +98,14 @@ function normalizeBaseUrl(value: string | undefined): string {
   }
 
   return DEFAULT_OPENROUTER_BASE_URL;
+}
+
+function normalizeHeaderTitle(value: string | undefined): string {
+  const title = (value ?? DEFAULT_OPENROUTER_APP_TITLE).trim();
+
+  if (/^[\x20-\x7e]+$/.test(title)) {
+    return title;
+  }
+
+  return DEFAULT_OPENROUTER_APP_TITLE;
 }
