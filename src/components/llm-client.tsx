@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Bot, CheckCircle2, Loader2, Send } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { SanitizedAnalyticsPayload } from "@/lib/types";
 
 type LlmClientProps = {
@@ -57,9 +59,36 @@ export function LlmClient({ payload }: LlmClientProps) {
         ) : null}
 
         {content ? (
-          <div className="mt-5 whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-5 text-sm leading-7 text-slate-800">
-            {content}
-          </div>
+          <article className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-5 text-sm leading-7 text-slate-800">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h1: ({ children }) => <h1 className="mb-4 text-xl font-semibold leading-8 text-slate-950">{children}</h1>,
+                h2: ({ children }) => (
+                  <h2 className="mb-3 mt-6 border-b border-slate-200 pb-2 text-base font-semibold leading-7 text-slate-950 first:mt-0">
+                    {children}
+                  </h2>
+                ),
+                h3: ({ children }) => <h3 className="mb-2 mt-5 text-sm font-semibold uppercase tracking-[0.08em] text-cyan-800">{children}</h3>,
+                p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
+                strong: ({ children }) => <strong className="font-semibold text-slate-950">{children}</strong>,
+                ul: ({ children }) => <ul className="mb-5 list-disc space-y-2 pl-5 last:mb-0">{children}</ul>,
+                ol: ({ children }) => <ol className="mb-5 list-decimal space-y-3 pl-5 last:mb-0">{children}</ol>,
+                li: ({ children }) => <li className="pl-1">{children}</li>,
+                hr: () => <hr className="my-5 border-slate-200" />,
+                table: ({ children }) => (
+                  <div className="my-5 overflow-x-auto rounded-md border border-slate-200 bg-white">
+                    <table className="min-w-full border-collapse text-left text-sm">{children}</table>
+                  </div>
+                ),
+                thead: ({ children }) => <thead className="bg-slate-100 text-slate-700">{children}</thead>,
+                th: ({ children }) => <th className="border-b border-slate-200 px-4 py-3 font-semibold">{children}</th>,
+                td: ({ children }) => <td className="border-t border-slate-100 px-4 py-3 align-top">{children}</td>,
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </article>
         ) : (
           <div className="mt-5 grid min-h-56 place-items-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-center">
             <div className="max-w-sm px-6">
