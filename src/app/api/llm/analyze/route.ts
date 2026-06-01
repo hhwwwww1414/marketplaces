@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   }
 
   const baseUrl = normalizeBaseUrl(process.env.OPENROUTER_BASE_URL);
-  const model = process.env.OPENROUTER_MODEL ?? "minimax/minimax-m2.5:free";
+  const model = process.env.OPENROUTER_MODEL ?? "deepseek/deepseek-chat-v3.1:free";
   const payload = sanitizeForLLM(parsed.data.payload);
 
   let response: Response;
@@ -67,11 +67,17 @@ export async function POST(request: Request) {
   }
 
   if (!response.ok) {
+    const detail = await response.text().catch(() => "");
     console.error("OpenRouter returned an error", {
       status: response.status,
       statusText: response.statusText,
+      model,
+      body: detail.slice(0, 2000),
     });
-    return NextResponse.json({ ok: false, error: OPENROUTER_ERROR_MESSAGE }, { status: 502 });
+    return NextResponse.json(
+      { ok: false, error: OPENROUTER_ERROR_MESSAGE, detail: extractOpenRouterError(detail) },
+      { status: 502 },
+    );
   }
 
   let data: { choices?: Array<{ message?: { content?: string } }> };
@@ -108,6 +114,26 @@ function normalizeHeaderTitle(value: string | undefined): string {
   }
 
   return DEFAULT_OPENROUTER_APP_TITLE;
+}
+
+function extractOpenRouterError(body: string): string | undefined {
+  if (!body) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: string } | string };
+    if (typeof parsed.error === "string") {
+      return parsed.error;
+    }
+    if (parsed.error?.message) {
+      return parsed.error.message;
+    }
+  } catch {
+    // fall through to raw text
+  }
+
+  return body.slice(0, 300);
 }
 
 function repairMojibake(value: string): string {

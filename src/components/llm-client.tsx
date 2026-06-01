@@ -25,11 +25,12 @@ export function LlmClient({ payload }: LlmClientProps) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: "project_evaluation", payload }),
     });
-    const result = (await response.json()) as { ok: boolean; content?: string; error?: string };
+    const result = (await response.json()) as { ok: boolean; content?: string; error?: string; detail?: string };
     setLoading(false);
 
     if (!result.ok) {
-      setError(result.error ?? "Не удалось получить ИИ-интерпретацию.");
+      const baseError = result.error ?? "Не удалось получить ИИ-интерпретацию.";
+      setError(result.detail ? `${baseError} (${result.detail})` : baseError);
       return;
     }
     setContent(result.content ?? "");
