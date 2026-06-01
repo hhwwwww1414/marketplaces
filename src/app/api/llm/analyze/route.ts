@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   }
 
   const baseUrl = normalizeBaseUrl(process.env.OPENROUTER_BASE_URL);
-  const model = process.env.OPENROUTER_MODEL ?? "deepseek/deepseek-chat-v3.1:free";
+  const model = process.env.OPENROUTER_MODEL ?? "meta-llama/llama-3.3-70b-instruct:free";
   const payload = sanitizeForLLM(parsed.data.payload);
 
   let response: Response;
